@@ -1,0 +1,10 @@
+*
+!server/
+!server/package*.json
+!server/schema.sql
+!server/src/
+!server/src/**
+!app/
+!app/build/
+!app/build/web/
+!app/build/web/**

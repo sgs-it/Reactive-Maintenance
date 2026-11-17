@@ -1,0 +1,6 @@
+.env
+node_modules/
+.local/
+app/build/
+app/.dart_tool/
+app/.flutter-plugins-dependencies
