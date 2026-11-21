@@ -1,0 +1,51 @@
+services:
+  database:
+    image: postgres:18-bookworm
+    environment:
+      POSTGRES_DB: rmcs
+      POSTGRES_USER: rmcs
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rmcs -d rmcs"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+    restart: unless-stopped
+  app:
+    build: .
+    stop_grace_period: 80s
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/health',{signal:AbortSignal.timeout(8000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    environment:
+      RMCS_AUTH_MODE: local
+      DATABASE_URL: postgres://rmcs:${POSTGRES_PASSWORD}@database:5432/rmcs
+      COMPANYCAM_KEY: ${COMPANYCAM_KEY:-}
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+  https:
+    image: caddy:2-alpine
+    environment:
+      RMCS_DOMAIN: ${RMCS_DOMAIN:?Set RMCS_DOMAIN in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  postgres:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,39 @@
+services:
+  app:
+    build: .
+    stop_grace_period: 80s
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/health',{signal:AbortSignal.timeout(8000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    environment:
+      RMCS_AUTH_MODE: supabase
+      RMCS_DATABASE_MANAGED: ${RMCS_DATABASE_MANAGED:-false}
+      DATABASE_URL: ${DATABASE_URL:?Set the Supabase PostgreSQL connection string in .env}
+      SUPABASE_URL: ${SUPABASE_URL:?Set the Supabase project URL in .env}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?Set the Supabase publishable key in .env}
+      SUPABASE_SECRET_KEY: ${SUPABASE_SECRET_KEY:-}
+      COMPANYCAM_KEY: ${COMPANYCAM_KEY:-}
+    volumes:
+      - ./.local/certs:/run/rmcs-db-certs:ro
+    restart: unless-stopped
+  https:
+    image: caddy:2-alpine
+    environment:
+      RMCS_DOMAIN: ${RMCS_DOMAIN:?Set RMCS_DOMAIN in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  caddy_data:
+  caddy_config:
